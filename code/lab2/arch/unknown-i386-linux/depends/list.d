@@ -1,2 +1,3 @@
-arch/unknown-i386-linux/depends/list.d arch/unknown-i386-linux/objects/list.o: list.cc copyright.h list.h utility.h ../lab2/bool.h \
- ../machine/sysdep.h ../lab2/copyright.h
+arch/unknown-i386-linux/depends/list.d arch/unknown-i386-linux/objects/list.o: ../threads/list.cc ../threads/copyright.h ../threads/list.h \
+ ../threads/utility.h ../threads/bool.h ../machine/sysdep.h \
+ ../threads/copyright.h
