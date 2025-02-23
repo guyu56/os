@@ -10,7 +10,11 @@
 // Copyright (c) 1995 The Regents of the University of Southern Queensland.
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
-
+#include <sys/types.h>   
+#include <sys/stat.h>   
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include "copyright.h"
 #include "system.h"
@@ -68,15 +72,19 @@ Producer(_int which)
     for (num = 0; num < N_MESSG ; num++) {
       // Put the code to prepare the message here.
       // ...
-
+      message->thread_id=which;
+      message->value=num;
       // Put the code for synchronization before  ring->Put(message) here.
       // ...
-
+      nempty->P();//向缓冲区放资源
+      mutex->P();//上锁
       ring->Put(message);
+      
 
       // Put the code for synchronization after  ring->Put(message) here.
       // ...
-
+      mutex->V();//解锁
+      nfull->V();//通知消费者缓冲区中有资源
     }
 }
 
@@ -104,20 +112,22 @@ Consumer(_int which)
     // create a file. Note that this is a UNIX system call.
     if ( (fd = creat(fname, 0600) ) == -1) 
     {
-	perror("creat: file create failed");
-	exit(1);
+        perror("creat: file create failed");
+        exit(1);
     }
     
     for (; ; ) {
 
       // Put the code for synchronization before ring->Get(message) here.
       // ...
-
+      nfull->P();//从缓冲区中取
+      mutex->P();//上锁
       ring->Get(message);
 
       // Put the code for synchronization after ring->Get(message) here.
       // ...
-
+      mutex->V();//解锁
+      nempty->V();//通知生产者缓冲区有空闲位置
 
       // form a string to record the message
       sprintf(str,"producer id --> %d; Message number --> %d;\n", 
@@ -148,11 +158,14 @@ ProdCons()
 
     // Put the code to construct all the semaphores here.
     // ....
+    mutex = new Semaphore("mutex", 1); 
+    nfull = new Semaphore("nfull", 0); 
+    nempty = new Semaphore("nempty", BUFF_SIZE); 
 
     // Put the code to construct a ring buffer object with size 
     //BUFF_SIZE here.
     // ...    
-
+    ring=new Ring(BUFF_SIZE);
 
     // create and fork N_PROD of producer threads 
     for (i=0; i < N_PROD; i++) 
@@ -165,7 +178,8 @@ ProdCons()
       //     the name in prod_names[i] and 
       //     integer i as the argument of function "Producer"
       //  ...
-
+      producers[i]= new Thread(prod_names[i]);
+      producers[i]->Fork(Producer,i);
     };
 
     // create and fork N_CONS of consumer threads 
@@ -178,7 +192,8 @@ ProdCons()
       //     the name in cons_names[i] and 
       //     integer i as the argument of function "Consumer"
       //  ...
-
+      consumers[i]=new Thread(cons_names[i]);
+      consumers[i]->Fork(Consumer,i);
     };
 }
 
